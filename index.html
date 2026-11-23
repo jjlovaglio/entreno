@@ -118,19 +118,26 @@ function ultimaVez(nombre) {
   }
   return null;
 }
+function nuevoEjercicio(e) {
+  // Precarga con lo hecho la vez anterior; las series sin dato heredan la última con peso.
+  const hechas = (ultimaVez(e.n)?.sets ?? []).filter(s => s.done && s.kg !== "");
+  return { nota:"", sets: Array.from({length:e.s}, (_, k) => {
+    const p = hechas[k] ?? hechas.at(-1);
+    return { kg: p?.kg ?? e.kg ?? "", reps: p?.reps ?? e.r, done:false }; // e.kg = peso inicial de SportClub
+  }) };
+}
 function nuevaSesion(idx) {
   const d = RUTINA[idx];
   const ej = {};
-  d.ejercicios.forEach(e => {
-    // Precarga con lo hecho la vez anterior; las series sin dato heredan la última con peso.
-    const hechas = (ultimaVez(e.n)?.sets ?? []).filter(s => s.done && s.kg !== "");
-    ej[e.n] = { nota:"", sets: Array.from({length:e.s}, (_, k) => {
-      const p = hechas[k] ?? hechas.at(-1);
-      return { kg: p?.kg ?? e.kg ?? "", reps: p?.reps ?? e.r, done:false }; // e.kg = peso inicial de SportClub
-    }) };
-  });
+  d.ejercicios.forEach(e => { ej[e.n] = nuevoEjercicio(e); });
   cur = { fecha:new Date().toISOString(), dia:d.dia, ejercicios:ej };
   save(K.cur, cur);
+}
+// Si la rutina cambió con una sesión a medias, suma los ejercicios nuevos sin tocar lo ya cargado.
+function reconciliar(d) {
+  let cambio = false;
+  d.ejercicios.forEach(e => { if (!cur.ejercicios[e.n]) { cur.ejercicios[e.n] = nuevoEjercicio(e); cambio = true; } });
+  if (cambio) save(K.cur, cur);
 }
 const fmtFecha = iso => new Date(iso).toLocaleDateString("es-AR", { weekday:"short", day:"numeric", month:"short" });
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
@@ -140,9 +147,10 @@ function render() {
   const m = document.getElementById("main");
   document.getElementById("nav").textContent = vista === "hoy" ? "Historial" : "Entrenar";
   if (vista === "hist") return renderHist(m);
-  if (!cur) nuevaSesion(proximoDia());
+  if (!cur || !RUTINA.some(r => r.dia === cur.dia)) nuevaSesion(proximoDia());
   const idx = RUTINA.findIndex(d => d.dia === cur.dia);
   const d = RUTINA[idx];
+  reconciliar(d);
   document.getElementById("h").textContent = d.dia;
   let h = `<div class="tabs">${RUTINA.map((r, i) =>
     `<button class="tab ${i===idx?"on":""}" data-dia="${i}">${r.dia}<small>${esc(r.foco)}</small></button>`).join("")}</div>`;
