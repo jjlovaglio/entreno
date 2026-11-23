@@ -74,7 +74,14 @@ const RUTINA = [
     { n:"Extensión de codo en polea", s:3, r:12 },
     { n:"Press francés", s:3, r:12 },
   ]},
-  { dia:"Día 2", foco:"Falta cargar", ejercicios:[] },
+  { dia:"Día 2", foco:"Tren inferior y hombros", ejercicios:[
+    { n:"Prensa 45° fija", s:3, r:12, kg:40 },
+    { n:"Sentadilla goblet", s:3, r:12, kg:7.5 },
+    { n:"Estocadas con mancuerna", s:3, r:12, kg:7.5 },
+    { n:"Camilla de femorales", s:3, r:12, kg:30 },
+    { n:"Press hombro", s:3, r:12, kg:7.5 },
+    { n:"Vuelos laterales", s:3, r:12, kg:7.5 },
+  ]},
   { dia:"Día 3", foco:"Espalda y bíceps", ejercicios:[
     { n:"Remo a caballo con barra", s:3, r:12 },
     { n:"Remo Hammer", s:3, r:12 },
@@ -117,7 +124,7 @@ function nuevaSesion(idx) {
     const hechas = (ultimaVez(e.n)?.sets ?? []).filter(s => s.done && s.kg !== "");
     ej[e.n] = { nota:"", sets: Array.from({length:e.s}, (_, k) => {
       const p = hechas[k] ?? hechas.at(-1);
-      return { kg: p?.kg ?? "", reps: p?.reps ?? e.r, done:false };
+      return { kg: p?.kg ?? e.kg ?? "", reps: p?.reps ?? e.r, done:false }; // e.kg = peso inicial de SportClub
     }) };
   });
   cur = { fecha:new Date().toISOString(), dia:d.dia, ejercicios:ej };
@@ -146,7 +153,7 @@ function render() {
     const yt = "https://www.youtube.com/results?search_query=" + encodeURIComponent(e.n + " técnica");
     h += `<div class="ex ${abierto===e.n?"open":""}">
       <div class="exh" data-open="${esc(e.n)}">
-        <span class="n">${esc(e.n)}<span class="meta">${e.s} × ${e.r}</span></span>
+        <span class="n">${esc(e.n)}<span class="meta">${e.s} × ${e.r}${e.kg ? ` · ${String(e.kg).replace(".", ",")} kg` : ""}</span></span>
         <span class="badge ${hechos===e.s?"done":""}">${hechos}/${e.s}</span>
         <a class="yt" href="${yt}" target="_blank" rel="noopener">▶ video</a>
       </div>
