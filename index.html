@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Entreno">
+<meta name="theme-color" content="#111111">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Entreno</title>
+<style>
+  :root { --bg:#111; --card:#1d1d1f; --line:#2c2c2e; --tx:#f5f5f7; --mut:#8e8e93; --acc:#ff3b30; --ok:#30d158; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; background:var(--bg); color:var(--tx); font:17px/1.35 -apple-system,system-ui,sans-serif;
+         padding:env(safe-area-inset-top) 0 calc(90px + env(safe-area-inset-bottom)); }
+  header { padding:16px 16px 8px; display:flex; justify-content:space-between; align-items:center; }
+  h1 { font-size:26px; margin:0; }
+  .tabs { display:flex; gap:8px; padding:0 16px 12px; }
+  .tab { flex:1; padding:12px 0; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--tx); font-size:16px; font-weight:600; }
+  .tab.on { background:var(--acc); border-color:var(--acc); }
+  .tab small { display:block; font-weight:400; font-size:11px; opacity:.8; }
+  .title { padding:0 16px 8px; color:var(--mut); font-size:14px; }
+  .ex { background:var(--card); margin:0 12px 10px; border-radius:14px; overflow:hidden; }
+  .exh { padding:14px 16px; display:flex; align-items:center; gap:10px; }
+  .exh .n { flex:1; font-weight:600; }
+  .exh .meta { color:var(--mut); font-size:13px; font-weight:400; display:block; margin-top:2px; }
+  .badge { font-size:13px; color:var(--mut); }
+  .badge.done { color:var(--ok); font-weight:700; }
+  .yt { color:var(--mut); text-decoration:none; font-size:13px; border:1px solid var(--line); border-radius:8px; padding:4px 8px; }
+  .sets { border-top:1px solid var(--line); padding:6px 12px 12px; display:none; }
+  .ex.open .sets { display:block; }
+  .row { display:grid; grid-template-columns:28px 1fr 1fr 52px; gap:8px; align-items:center; margin-top:8px; }
+  .row .i { color:var(--mut); text-align:center; }
+  .row input { width:100%; font-size:20px; padding:10px; border-radius:10px; border:1px solid var(--line); background:#000; color:var(--tx); text-align:center; }
+  .row label { font-size:11px; color:var(--mut); display:block; text-align:center; }
+  .chk { height:46px; border-radius:10px; border:1px solid var(--line); background:#000; color:var(--mut); font-size:22px; }
+  .chk.on { background:var(--ok); border-color:var(--ok); color:#000; }
+  .prev { color:var(--mut); font-size:13px; margin-top:8px; }
+  .note { width:100%; margin-top:8px; padding:8px; border-radius:10px; border:1px solid var(--line); background:#000; color:var(--tx); font-size:15px; }
+  .btn { display:block; width:calc(100% - 24px); margin:14px 12px; padding:15px; border-radius:14px; border:0; font-size:17px; font-weight:700; background:var(--acc); color:#fff; }
+  .btn.sec { background:var(--card); color:var(--tx); border:1px solid var(--line); }
+  .empty { margin:20px 16px; color:var(--mut); }
+  #timer { position:fixed; left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom)); background:#000; border:1px solid var(--line);
+           border-radius:16px; padding:10px 14px; display:flex; align-items:center; gap:10px; }
+  #timer .t { font-size:30px; font-weight:700; font-variant-numeric:tabular-nums; flex:1; }
+  #timer.alarm { border-color:var(--ok); }
+  #timer.alarm .t { color:var(--ok); }
+  #timer button { padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--tx); font-size:15px; }
+  .hist { background:var(--card); margin:0 12px 10px; border-radius:14px; padding:12px 16px; }
+  .hist b { display:block; }
+  .hist div { color:var(--mut); font-size:14px; margin-top:4px; }
+  .link { background:none; border:0; color:var(--mut); font-size:15px; padding:8px; }
+</style>
+</head>
+<body>
+<header><h1 id="h">Entreno</h1><button class="link" id="nav">Historial</button></header>
+<main id="main"></main>
+<div id="timer">
+  <span class="t" id="tt">1:30</span>
+  <button data-d="-15">−15</button><button data-d="15">+15</button><button id="tgo">▶︎</button>
+</div>
+<script>
+// ─── RUTINA ─────────────────────────────────────────────────────────
+// Fuente: app de SportClub Palmares, "AG- 3 x semana Hipertrofia pérdida de tejido adiposo".
+// Para cambiar la rutina se edita SOLO este bloque. El historial se guarda por nombre de ejercicio,
+// así que renombrar un ejercicio corta su "la vez anterior".
+const RUTINA = [
+  { dia:"Día 1", foco:"Falta cargar", ejercicios:[] },
+  { dia:"Día 2", foco:"Falta cargar", ejercicios:[] },
+  { dia:"Día 3", foco:"Espalda y bíceps", ejercicios:[
+    { n:"Remo a caballo con barra", s:3, r:12 },
+    { n:"Remo Hammer", s:3, r:12 },
+    { n:"Remo gorila", s:3, r:12 },
+    { n:"Curl alterno en banca inclinada", s:3, r:12 },
+    { n:"Curl martillo con mancuerna", s:3, r:12 },
+  ]},
+];
+const DESCANSO = 90; // segundos por default
+
+// ─── PERSISTENCIA ───────────────────────────────────────────────────
+// Todo se guarda en el teléfono en cada toque. La sesión en curso sobrevive a cerrar la app.
+const K = { hist:"entreno.historial.v1", cur:"entreno.encurso.v1" };
+const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+if (navigator.storage?.persist) navigator.storage.persist();
+
+let hist = load(K.hist, []);       // [{fecha, dia, ejercicios:{nombre:{sets:[{kg,reps}], nota}}}]
+let cur  = load(K.cur, null);      // sesión en curso, mismo formato + done flags
+let vista = "hoy";
+let abierto = null;
+
+function proximoDia() {
+  if (!hist.length) return 0;
+  const i = RUTINA.findIndex(d => d.dia === hist[hist.length-1].dia);
+  return (i + 1) % RUTINA.length;
+}
+function ultimaVez(nombre) {
+  for (let i = hist.length-1; i >= 0; i--) {
+    const e = hist[i].ejercicios[nombre];
+    if (e && e.sets.some(s => s.done)) return { fecha:hist[i].fecha, ...e };
+  }
+  return null;
+}
+function nuevaSesion(idx) {
+  const d = RUTINA[idx];
+  const ej = {};
+  d.ejercicios.forEach(e => {
+    // Precarga con lo hecho la vez anterior; las series sin dato heredan la última con peso.
+    const hechas = (ultimaVez(e.n)?.sets ?? []).filter(s => s.done && s.kg !== "");
+    ej[e.n] = { nota:"", sets: Array.from({length:e.s}, (_, k) => {
+      const p = hechas[k] ?? hechas.at(-1);
+      return { kg: p?.kg ?? "", reps: p?.reps ?? e.r, done:false };
+    }) };
+  });
+  cur = { fecha:new Date().toISOString(), dia:d.dia, ejercicios:ej };
+  save(K.cur, cur);
+}
+const fmtFecha = iso => new Date(iso).toLocaleDateString("es-AR", { weekday:"short", day:"numeric", month:"short" });
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+
+// ─── VISTAS ─────────────────────────────────────────────────────────
+function render() {
+  const m = document.getElementById("main");
+  document.getElementById("nav").textContent = vista === "hoy" ? "Historial" : "Entrenar";
+  if (vista === "hist") return renderHist(m);
+  if (!cur) nuevaSesion(proximoDia());
+  const idx = RUTINA.findIndex(d => d.dia === cur.dia);
+  const d = RUTINA[idx];
+  document.getElementById("h").textContent = d.dia;
+  let h = `<div class="tabs">${RUTINA.map((r, i) =>
+    `<button class="tab ${i===idx?"on":""}" data-dia="${i}">${r.dia}<small>${esc(r.foco)}</small></button>`).join("")}</div>`;
+  h += `<div class="title">${esc(d.foco)} · ${fmtFecha(cur.fecha)}</div>`;
+  if (!d.ejercicios.length) h += `<p class="empty">Este día todavía no tiene ejercicios cargados.</p>`;
+  d.ejercicios.forEach(e => {
+    const x = cur.ejercicios[e.n];
+    const hechos = x.sets.filter(s => s.done).length;
+    const prev = ultimaVez(e.n);
+    const yt = "https://www.youtube.com/results?search_query=" + encodeURIComponent(e.n + " técnica");
+    h += `<div class="ex ${abierto===e.n?"open":""}">
+      <div class="exh" data-open="${esc(e.n)}">
+        <span class="n">${esc(e.n)}<span class="meta">${e.s} × ${e.r}</span></span>
+        <span class="badge ${hechos===e.s?"done":""}">${hechos}/${e.s}</span>
+        <a class="yt" href="${yt}" target="_blank" rel="noopener">▶ video</a>
+      </div>
+      <div class="sets">
+        ${x.sets.map((s, k) => `<div class="row">
+          <span class="i">${k+1}</span>
+          <div><input inputmode="decimal" value="${esc(s.kg)}" data-e="${esc(e.n)}" data-k="${k}" data-f="kg" placeholder="kg"><label>kg</label></div>
+          <div><input inputmode="numeric" value="${esc(s.reps)}" data-e="${esc(e.n)}" data-k="${k}" data-f="reps"><label>reps</label></div>
+          <button class="chk ${s.done?"on":""}" data-chk="${esc(e.n)}" data-k="${k}">✓</button>
+        </div>`).join("")}
+        <div class="prev">${prev ? `Última vez (${fmtFecha(prev.fecha)}): ${prev.sets.filter(s=>s.done).map(s=>`${s.kg||"–"} kg × ${s.reps}`).join(" · ")}${prev.nota?` — “${esc(prev.nota)}”`:""}` : "Primera vez que lo registrás."}</div>
+        <input class="note" placeholder="Nota (ej: subir peso la próxima)" value="${esc(x.nota)}" data-nota="${esc(e.n)}">
+      </div>
+    </div>`;
+  });
+  if (d.ejercicios.length) h += `<button class="btn" id="fin">Terminar entrenamiento</button>`;
+  m.innerHTML = h;
+}
+
+function renderHist(m) {
+  document.getElementById("h").textContent = "Historial";
+  let h = hist.length ? "" : `<p class="empty">Todavía no terminaste ningún entrenamiento.</p>`;
+  [...hist].reverse().forEach(s => {
+    h += `<div class="hist"><b>${fmtFecha(s.fecha)} · ${esc(s.dia)}</b>${Object.entries(s.ejercicios)
+      .filter(([, e]) => e.sets.some(x => x.done))
+      .map(([n, e]) => `<div>${esc(n)}: ${e.sets.filter(x=>x.done).map(x=>`${x.kg||"–"}×${x.reps}`).join(", ")}</div>`).join("")}</div>`;
+  });
+  h += `<button class="btn sec" id="exp">Exportar respaldo</button>
+        <button class="btn sec" id="imp">Importar respaldo</button>`;
+  m.innerHTML = h;
+}
+
+// ─── EVENTOS ────────────────────────────────────────────────────────
+document.addEventListener("input", ev => {
+  const t = ev.target;
+  if (t.dataset.f) cur.ejercicios[t.dataset.e].sets[t.dataset.k][t.dataset.f] = t.value;
+  if (t.dataset.nota) cur.ejercicios[t.dataset.nota].nota = t.value;
+  save(K.cur, cur);
+});
+document.addEventListener("click", ev => {
+  const t = ev.target.closest("button, .exh, a");
+  if (!t || t.tagName === "A") return;
+  if (t.id === "nav") { vista = vista === "hoy" ? "hist" : "hoy"; return render(); }
+  if (t.dataset.dia !== undefined) {
+    const i = +t.dataset.dia;
+    if (RUTINA[i].dia === cur.dia) return;
+    const empezado = Object.values(cur.ejercicios).some(e => e.sets.some(s => s.done));
+    if (empezado && !confirm("Ya marcaste series en este día. Cambiar de día las descarta. Seguir?")) return;
+    nuevaSesion(i); abierto = null; return render();
+  }
+  if (t.dataset.open !== undefined) { abierto = abierto === t.dataset.open ? null : t.dataset.open; return render(); }
+  if (t.dataset.chk !== undefined) {
+    const s = cur.ejercicios[t.dataset.chk].sets[t.dataset.k];
+    s.done = !s.done; save(K.cur, cur);
+    if (s.done) timerStart();
+    return render();
+  }
+  if (t.id === "fin") {
+    if (!Object.values(cur.ejercicios).some(e => e.sets.some(s => s.done))) return alert("No marcaste ninguna serie.");
+    if (!confirm("Terminar y guardar en el historial?")) return;
+    hist.push(cur); save(K.hist, hist);
+    cur = null; localStorage.removeItem(K.cur); abierto = null;
+    vista = "hist"; return render();
+  }
+  if (t.id === "exp") {
+    const blob = new Blob([JSON.stringify({ hist }, null, 1)], { type:"application/json" });
+    const f = new File([blob], `entreno-${new Date().toISOString().slice(0,10)}.json`, { type:"application/json" });
+    if (navigator.canShare?.({ files:[f] })) navigator.share({ files:[f] });
+    else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = f.name; a.click(); }
+    return;
+  }
+  if (t.id === "imp") {
+    const i = document.createElement("input"); i.type = "file"; i.accept = "application/json,.json";
+    i.onchange = async () => {
+      try {
+        const d = JSON.parse(await i.files[0].text());
+        if (!Array.isArray(d.hist)) throw 0;
+        if (!confirm(`Reemplazar el historial actual (${hist.length}) por el del archivo (${d.hist.length})?`)) return;
+        hist = d.hist; save(K.hist, hist); render();
+      } catch { alert("El archivo no es un respaldo válido."); }
+    };
+    return i.click();
+  }
+  if (t.dataset.d) { timerAdd(+t.dataset.d); return; }
+  if (t.id === "tgo") { fin ? timerStop() : timerStart(); return; }
+});
+
+// ─── TIMER ──────────────────────────────────────────────────────────
+// Cuenta contra un timestamp, así sigue bien aunque el teléfono bloquee la pantalla.
+let fin = null, dur = DESCANSO, ctx = null;
+const tt = document.getElementById("tt"), tw = document.getElementById("timer"), tgo = document.getElementById("tgo");
+function beep() {
+  try {
+    ctx ??= new AudioContext();
+    [0, .25, .5].forEach(o => { const g = ctx.createGain(), osc = ctx.createOscillator();
+      osc.frequency.value = 880; osc.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(.3, ctx.currentTime + o); osc.start(ctx.currentTime + o); osc.stop(ctx.currentTime + o + .15); });
+  } catch {}
+}
+function timerStart() { ctx ??= new AudioContext(); fin = Date.now() + dur * 1000; tw.classList.remove("alarm"); tick(); }
+function timerStop() { fin = null; tw.classList.remove("alarm"); tgo.textContent = "▶︎"; tt.textContent = fmt(dur); }
+function timerAdd(d) { if (fin) fin += d * 1000; else { dur = Math.max(15, dur + d); tt.textContent = fmt(dur); } }
+const fmt = s => `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
+function tick() {
+  if (!fin) return;
+  tgo.textContent = "■";
+  const r = Math.ceil((fin - Date.now()) / 1000);
+  if (r <= 0) { tt.textContent = "¡Listo!"; tw.classList.add("alarm"); beep(); fin = null; tgo.textContent = "▶︎"; return; }
+  tt.textContent = fmt(r); setTimeout(tick, 250);
+}
+tt.textContent = fmt(dur);
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+render();
+</script>
+</body>
+</html>
