@@ -1,6 +1,6 @@
 // Cache para que la app abra sin señal en el gimnasio.
 // Al cambiar index.html, subir la versión para que el teléfono baje la nueva.
-const V = "entreno-v3";
+const V = "entreno-v4";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon.svg"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(V).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener("activate", e => {
